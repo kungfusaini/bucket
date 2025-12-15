@@ -1,6 +1,6 @@
-# Well TUI
+# Bucket
 
-Simple terminal interface for the Well API.
+Simple terminal interface for my well API, my solution to quickly capturing thoughts.
 
 ## Setup
 
@@ -21,27 +21,22 @@ export EDITOR=nvim  # or vim, code, etc.
 
 ## Usage
 
-Run the program:
+Just run the program:
 ```bash
-./well.py
-```
-
-Or:
-```bash
-python3 well.py
+./bucket.py
 ```
 
 ### Features
 
-- **Write Entry**: Create new tasks, notes, or bookmarks (stay in write submenu)
-- **Read Entry**: View existing entries by type (stay in read submenu)  
-- **Editor Integration**: Uses your preferred editor ($EDITOR)
-- **Temp File Cleanup**: Automatic cleanup after editing
-- **Submenu Navigation**: Stay in write/read workflows until you choose to exit
+- **Write Entry**: Create new tasks, notes, or bookmarks
+- **Read Entry**: View and edit existing entries by type
+- **Change Detection**: Automatically detects if you made changes and asks for confirmation
 
 ### API Endpoints
 
 - Base URL: `https://vulkan.sumeetsaini.com/well`
 - Types: `task`, `note`, `bookmark`
+- POST: Append new entries
+- GET: Read entire file content
+- PUT: Replace entire file content (for editing)
 
-The `.env` file should contain your production API key and will not be tracked by git.
