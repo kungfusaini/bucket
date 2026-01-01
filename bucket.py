@@ -39,6 +39,253 @@ def get_type_by_choice(choice):
     type_map = {'1': 'task', '2': 'note', '3': 'bookmark'}
     return type_map.get(choice)
 
+def get_categories(base_url, headers):
+    """Get categories and subcategories from API"""
+    try:
+        response = requests.get(f"{base_url}/categories", headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('categories', {})
+        else:
+            print(f"Error getting categories: {response.status_code} - {response.text}")
+            return {}
+    except Exception as e:
+        print(f"Error getting categories: {e}")
+        return {}
+
+def add_category(base_url, headers, category):
+    """Add new category"""
+    try:
+        response = requests.post(
+            f"{base_url}/categories",
+            json={'category': category},
+            headers=headers
+        )
+        if response.status_code != 201:
+            print(f"Server response: {response.status_code} - {response.text}")
+        return response.status_code == 201
+    except Exception as e:
+        print(f"Error adding category: {e}")
+        return False
+
+def add_subcategory(base_url, headers, category, subcategory):
+    """Add new subcategory"""
+    try:
+        response = requests.post(
+            f"{base_url}/categories",
+            json={'category': category, 'subcategory': subcategory},
+            headers=headers
+        )
+        if response.status_code != 201:
+            print(f"Server response: {response.status_code} - {response.text}")
+        return response.status_code == 201
+    except Exception as e:
+        print(f"Error adding subcategory: {e}")
+        return False
+
+def get_date_input():
+    """Get date input from user"""
+    while True:
+        choice = input("Date: (1) Today, (2) Custom date [1]: ").strip() or '1'
+        
+        if choice == '1':
+            from datetime import date
+            return date.today().isoformat()
+        elif choice == '2':
+            while True:
+                date_input = input("Enter date (YYYY-MM-DD): ").strip()
+                if len(date_input) == 10 and date_input[4] == '-' and date_input[7] == '-':
+                    try:
+                        year, month, day = map(int, date_input.split('-'))
+                        from datetime import date
+                        date(year, month, day)  # Validate date
+                        return date_input
+                    except ValueError:
+                        print("Invalid date. Please use YYYY-MM-DD format.")
+                else:
+                    print("Invalid format. Please use YYYY-MM-DD.")
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
+
+def get_name_input():
+    """Get name input from user"""
+    while True:
+        name = input("Name: ").strip()
+        if name:
+            return name
+        else:
+            print("Name is required.")
+
+def get_amount_input():
+    """Get amount input from user"""
+    while True:
+        amount_input = input("Amount: ").strip()
+        try:
+            amount = float(amount_input)
+            if amount > 0:
+                return round(amount, 2)
+            else:
+                print("Amount must be positive.")
+        except ValueError:
+            print("Invalid amount. Please enter a number.")
+
+def select_category(categories, base_url, headers):
+    """Select category from list or add new"""
+    if not categories:
+        # No categories exist, must create one
+        print("No categories exist yet.")
+        while True:
+            category = input("Enter new category name: ").strip()
+            if category:
+                if add_category(base_url, headers, category):
+                    print(f"Category '{category}' added successfully.")
+                    return category, select_subcategory(category, [], base_url, headers)
+                else:
+                    print("Failed to add category. Please try again.")
+            else:
+                print("Category name is required.")
+    
+    while True:
+        print("\nCategories:")
+        category_list = list(categories.keys())
+        for i, cat in enumerate(category_list, 1):
+            print(f"  ({i}) {cat}")
+        print(f"  ({len(category_list) + 1}) Add New Category")
+        
+        choice = input(f"Select category [1-{len(category_list) + 1}]: ").strip()
+        
+        try:
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(category_list):
+                selected_category = category_list[choice_num - 1]
+                subcategory = select_subcategory(selected_category, categories[selected_category], base_url, headers)
+                return selected_category, subcategory
+            elif choice_num == len(category_list) + 1:
+                # Add new category
+                while True:
+                    new_category = input("Enter new category name: ").strip()
+                    if new_category:
+                        if add_category(base_url, headers, new_category):
+                            print(f"Category '{new_category}' added successfully.")
+                            categories[new_category] = []  # Update local cache
+                            subcategory = select_subcategory(new_category, [], base_url, headers)
+                            return new_category, subcategory
+                        else:
+                            print("Failed to add category. Please try again.")
+                    else:
+                        print("Category name is required.")
+            else:
+                print(f"Invalid choice. Please enter 1-{len(category_list) + 1}.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+def select_subcategory(category, subcategories, base_url, headers):
+    """Select subcategory from list or add new"""
+    if not subcategories:
+        # No subcategories exist, must create one
+        print(f"No subcategories exist for '{category}'. Let's create one.")
+        while True:
+            subcategory = input("Enter new subcategory name: ").strip()
+            if subcategory:
+                if add_subcategory(base_url, headers, category, subcategory):
+                    print(f"Subcategory '{subcategory}' added successfully.")
+                    return subcategory
+                else:
+                    print("Failed to add subcategory. Please try again.")
+            else:
+                print("Subcategory name is required.")
+    
+    while True:
+        print(f"\nSubcategories for {category}:")
+        for i, sub in enumerate(subcategories, 1):
+            print(f"  ({i}) {sub}")
+        print(f"  ({len(subcategories) + 1}) Add New Subcategory")
+        
+        choice = input(f"Select subcategory [1-{len(subcategories) + 1}]: ").strip()
+        
+        try:
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(subcategories):
+                return subcategories[choice_num - 1]
+            elif choice_num == len(subcategories) + 1:
+                # Add new subcategory
+                while True:
+                    new_subcategory = input("Enter new subcategory name: ").strip()
+                    if new_subcategory:
+                        if add_subcategory(base_url, headers, category, new_subcategory):
+                            print(f"Subcategory '{new_subcategory}' added successfully.")
+                            return new_subcategory
+                        else:
+                            print("Failed to add subcategory. Please try again.")
+                    else:
+                        print("Subcategory name is required.")
+            else:
+                print(f"Invalid choice. Please enter 1-{len(subcategories) + 1}.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+def get_payment_method():
+    """Get payment method from user"""
+    while True:
+        choice = input("Payment Method: (1) Credit, (2) Debit [1]: ").strip() or '1'
+        if choice == '1':
+            return 'credit'
+        elif choice == '2':
+            return 'debit'
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
+
+def get_notes():
+    """Get optional notes from user"""
+    notes = input("Notes [optional]: ").strip()
+    return notes
+
+def spend_entry(base_url, headers):
+    """Add a new financial entry"""
+    try:
+        print("\n=== Spend Entry ===")
+        
+        # Get all inputs
+        date = get_date_input()
+        name = get_name_input()
+        amount = get_amount_input()
+        
+        # Get categories
+        categories = get_categories(base_url, headers)
+        category, subcategory = select_category(categories, base_url, headers)
+        
+        payment_method = get_payment_method()
+        notes = get_notes()
+        
+        # Create entry
+        entry_data = {
+            'date': date,
+            'name': name,
+            'amount': amount,
+            'category': category,
+            'subcategory': subcategory,
+            'payment_method': payment_method,
+            'notes': notes
+        }
+        
+        # Send to API
+        response = requests.post(
+            f"{base_url}/spend",
+            json=entry_data,
+            headers=headers
+        )
+        
+        if response.status_code == 201:
+            result = response.json()
+            print(f"\n✓ Entry added successfully!")
+            print(f"Preview: {result.get('preview', 'N/A')}")
+        else:
+            print(f"\nError adding entry: {response.status_code}")
+            print(f"Response: {response.text}")
+            
+    except Exception as e:
+        print(f"Error: {e}")
+
 def write_entry(base_url, headers, entry_type):
     """Write a new entry"""
     editor = os.getenv('EDITOR', 'nano')
@@ -73,20 +320,22 @@ def write_entry(base_url, headers, entry_type):
         # Clean up temp file
         os.unlink(temp_path)
 
-def write_submenu(base_url, headers):
+def write_submenu(well_base_url, vault_base_url, headers):
     """Stay in write submenu loop"""
     while True:
         print("\n=== Put ===")
-        choice = input("\n(1) Task, (2) Note, (3) Bookmark, (4) Back: ").strip()
+        choice = input("\n(1) Task, (2) Note, (3) Bookmark, (4) Spend, (5) Back: ").strip()
         
         if choice in '123':
             entry_type = get_type_by_choice(choice)
             if entry_type:
-                write_entry(base_url, headers, entry_type)
+                write_entry(well_base_url, headers, entry_type)
         elif choice == '4':
+            spend_entry(vault_base_url, headers)
+        elif choice == '5':
             break
         else:
-            print("Invalid choice. Press 1-4")
+            print("Invalid choice. Press 1-5")
 
 def read_entry(base_url, headers, entry_type):
     """Read and optionally edit entries of a specific type"""
@@ -142,27 +391,40 @@ def read_entry(base_url, headers, entry_type):
     except Exception as e:
         print(f"Error: {e}")
 
-def read_submenu(base_url, headers):
+def read_submenu(well_base_url, vault_base_url, headers):
     """Stay in read submenu loop"""
     while True:
         print("\n=== Fetch ===")
-        choice = input("\n(1) Task, (2) Note, (3) Bookmark, (4) Back: ").strip()
+        choice = input("\n(1) Task, (2) Note, (3) Bookmark, (4) Transactions, (5) Back: ").strip()
         
         if choice in '123':
             entry_type = get_type_by_choice(choice)
             if entry_type:
-                read_entry(base_url, headers, entry_type)
+                read_entry(well_base_url, headers, entry_type)
         elif choice == '4':
+            # Fetch financial data
+            try:
+                response = requests.get(f"{vault_base_url}/data", headers=headers)
+                if response.status_code == 200:
+                    print("\n=== Financial Data ===")
+                    print(response.text)
+                else:
+                    print(f"Error fetching financial data: {response.status_code}")
+                    print(f"Response: {response.text}")
+            except Exception as e:
+                print(f"Error fetching financial data: {e}")
+        elif choice == '5':
             break
         else:
-            print("Invalid choice. Press 1-4")
+            print("Invalid choice. Press 1-5")
 
 def main():
     """Main program loop"""
     # Load configuration
     api_key = load_config()
     ascii_art = load_art()
-    base_url = "https://vulkan.sumeetsaini.com/well"
+    vault_base_url = "https://vulkan.sumeetsaini.com/vault"
+    well_base_url = "https://vulkan.sumeetsaini.com/well"
     headers = {
         'X-API-Key': api_key,
         'Content-Type': 'application/json'
@@ -174,9 +436,9 @@ def main():
         choice = input("\n(1) Put Entry, (2) Fetch, (3) Exit: ").strip()
         
         if choice == '1':
-            write_submenu(base_url, headers)
+            write_submenu(well_base_url, vault_base_url, headers)
         elif choice == '2':
-            read_submenu(base_url, headers)
+            read_submenu(well_base_url, vault_base_url, headers)
         elif choice == '3':
             print("Goodbye!")
             break
