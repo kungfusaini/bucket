@@ -356,26 +356,39 @@ def write_entry(base_url, headers, entry_type):
         # Clean up temp file
         os.unlink(temp_path)
 
+def finances_put_submenu(vault_base_url, headers):
+    """Finances put submenu loop"""
+    while True:
+        print("\n=== Finances ===")
+        choice = input("\n(1) Spend, (2) Income, (3) Budget, (4) Back: ").strip()
+        
+        if choice == '1':
+            spend_entry(vault_base_url, headers)
+        elif choice == '2':
+            add_income(vault_base_url, headers)
+        elif choice == '3':
+            duplicate_and_edit_budget(vault_base_url, headers)
+        elif choice == '4':
+            break
+        else:
+            print("Invalid choice. Press 1-4")
+
 def write_submenu(well_base_url, vault_base_url, headers):
     """Stay in write submenu loop"""
     while True:
         print("\n=== Put ===")
-        choice = input("\n(1) Task, (2) Note, (3) Bookmark, (4) Spend, (5) Income, (6) Budget, (7) Back: ").strip()
+        choice = input("\n(1) Task, (2) Note, (3) Bookmark, (4) Finances, (5) Back: ").strip()
         
         if choice in '123':
             entry_type = get_type_by_choice(choice)
             if entry_type:
                 write_entry(well_base_url, headers, entry_type)
         elif choice == '4':
-            spend_entry(vault_base_url, headers)
+            finances_put_submenu(vault_base_url, headers)
         elif choice == '5':
-            add_income(vault_base_url, headers)
-        elif choice == '6':
-            duplicate_and_edit_budget(vault_base_url, headers)
-        elif choice == '7':
             break
         else:
-            print("Invalid choice. Press 1-7")
+            print("Invalid choice. Press 1-5")
 
 def read_entry(base_url, headers, entry_type):
     """Read and optionally edit entries of a specific type"""
