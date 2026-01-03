@@ -391,6 +391,60 @@ def read_entry(base_url, headers, entry_type):
     except Exception as e:
         print(f"Error: {e}")
 
+def edit_transactions(vault_base_url, headers):
+    """Edit all transactions using external editor"""
+    editor = os.getenv('EDITOR', 'nvim')
+    
+    try:
+        # Get original content from API
+        response = requests.get(f"{vault_base_url}/data", headers=headers)
+        
+        if response.status_code != 200:
+            print(f"\nStatus: {response.status_code}")
+            print(f"Response: {response.text}")
+            return
+        
+        original_content = response.text.strip()
+        
+        # Create temp file with original CSV content
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_file:
+            temp_file.write(original_content)
+            temp_path = temp_file.name
+        
+        try:
+            # Open editor for editing
+            subprocess.run([editor, temp_path])
+            
+            # Read new content after editing
+            with open(temp_path, 'r') as f:
+                new_content = f.read().strip()
+            
+            # Check if changes were made
+            if original_content != new_content:
+                print("Changes detected!")
+                update_choice = input("Update transaction data on VPS? (y/n): ").strip().lower()
+                
+                if update_choice == 'y':
+                    # Use PUT endpoint to replace entire file
+                    put_response = requests.put(
+                        f"{vault_base_url}/data",
+                        json={'content': new_content},
+                        headers=headers
+                    )
+                    print(f"\nUpdate Status: {put_response.status_code}")
+                    print(f"Update Response: {put_response.text}")
+                else:
+                    print("Changes discarded.")
+            else:
+                print("No changes made.")
+                
+        finally:
+            # Clean up temp file
+            os.unlink(temp_path)
+            
+    except Exception as e:
+        print(f"Error editing transactions: {e}")
+
 def read_submenu(well_base_url, vault_base_url, headers):
     """Stay in read submenu loop"""
     while True:
@@ -402,17 +456,7 @@ def read_submenu(well_base_url, vault_base_url, headers):
             if entry_type:
                 read_entry(well_base_url, headers, entry_type)
         elif choice == '4':
-            # Fetch financial data
-            try:
-                response = requests.get(f"{vault_base_url}/data", headers=headers)
-                if response.status_code == 200:
-                    print("\n=== Financial Data ===")
-                    print(response.text)
-                else:
-                    print(f"Error fetching financial data: {response.status_code}")
-                    print(f"Response: {response.text}")
-            except Exception as e:
-                print(f"Error fetching financial data: {e}")
+            edit_transactions(vault_base_url, headers)
         elif choice == '5':
             break
         else:
